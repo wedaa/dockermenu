@@ -1,0 +1,65 @@
+#!/usr/bin/perl
+# this is called dockermenu
+$nsenter=`which nsenter`;
+chomp $nsenter;
+#print "nsenter is $nsenter\n";
+$lxcattach=`which lxc-attach`;
+chomp $lxcattach;
+#print "lxc-attach is $lxcattach\n";
+
+if ($nsenter ne ""){
+	open (NAMES, "docker ps |") || die "Can not run docker ps command, exiting now\n";
+	$menucount=1;
+	while (<NAMES>){
+	        chomp;
+	        $count=@myarray=split(/ +/,$_);
+	        $name= $myarray[$count-1];
+	        if (/NAMES$/){next;}
+	        $pid=`docker inspect --format='{{.State.Pid}}'  $name`;
+	        chomp $pid;
+	        print "$menucount) $name\n";
+	        #print "$menucount) $name, pid is $pid\n";
+	        #$names{'$name'}="$pid";
+	        $names[$menucount]="$pid";
+	        $menucount++;
+	}
+	print "Q) Quit\n";
+	close (NAMES);
+}
+
+if ($lxcattach ne ""){
+	open (NAMES, "docker ps -a --no-trunc|") || die "Can not run docker ps command, exiting now\n";
+	$menucount=1;
+	while (<NAMES>){
+	        chomp;
+	        $count=@myarray=split(/ +/,$_);
+	        $name= $myarray[$count-1];
+	        if (/NAMES$/){next;}
+	        $pid=`docker inspect --format='{{.State.Pid}}'  $name`;
+		($containerid,$trash)=split(/ /,$_);
+	        #print "$menucount) $name, containerid is $containerid\n";
+	        print "$menucount) $name\n";
+	        $names[$menucount]="$containerid";
+	        $menucount++;
+	}
+	print "Q) Quit\n";
+	close (NAMES);
+}
+print "Your Choice:";
+while (1){
+$_ = <STDIN>;
+        chomp;
+        if ( $_ eq "q" ){ exit;}
+        if ( $_ eq "Q" ){ exit;}
+	if ($nsenter ne ""){
+        	$tmp=system "nsenter -m -u -n -i -p -t $names[$_] /bin/bash";
+	}
+	if ($lxcattach ne ""){
+		$tmp=system " lxc-attach  -n $names[$_]";
+	}
+        # For some reason this sends the script into a backgrounded state when it returns...
+        # so I just exit.  I'll fix the problem later if I keep using this.
+       exit
+#        print "Your Choice:";
+}
+
