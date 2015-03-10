@@ -1,0 +1,92 @@
+#!/usr/bin/perl
+# Written by Eric Wedaa (eric.wedaa@marist.edu)
+# Version 1.0
+# Creation Date: 2015-03-09
+# Last Modified: 2015-03-09
+# Version: 1.0
+#
+# This is an easy to use way to get inside of a
+# docker container without playing all the games
+# required to do so.
+#
+# This is similar to vtmenu in IBM land.
+#
+
+sub init_vars {
+	$nsenter=`which nsenter`;
+	chomp $nsenter;
+	#print "nsenter is $nsenter\n";
+	$lxcattach=`which lxc-attach`;
+	chomp $lxcattach;
+	#print "lxc-attach is $lxcattach\n";
+}
+
+sub print_menu{
+	if ($nsenter ne ""){
+		open (NAMES, "docker ps |") || die "Can not run docker ps command, exiting now\n";
+		$menucount=1;
+		while (<NAMES>){
+		        chomp;
+		        $count=@myarray=split(/ +/,$_);
+		        $name= $myarray[$count-1];
+		        if (/NAMES$/){next;}
+		        $pid=`docker inspect --format='{{.State.Pid}}'  $name`;
+		        chomp $pid;
+		        print "$menucount) $name\n";
+		        $names[$menucount]="$pid";
+		        $menucount++;
+		}
+		print "Q) Quit\n";
+		close (NAMES);
+	}
+
+	if ($lxcattach ne ""){
+		open (NAMES, "docker ps -a --no-trunc|") || die "Can not run docker ps command, exiting now\n";
+		$menucount=1;
+		while (<NAMES>){
+		        chomp;
+		        $count=@myarray=split(/ +/,$_);
+		        $name= $myarray[$count-1];
+		        if (/NAMES$/){next;}
+		        $pid=`docker inspect --format='{{.State.Pid}}'  $name`;
+			($containerid,$trash)=split(/ /,$_);
+		        print "$menucount) $name\n";
+		        $names[$menucount]="$containerid";
+		        $menucount++;
+		}
+		print "Q) Quit\n";
+		close (NAMES);
+	}
+}
+
+
+&init_vars;
+
+&print_menu;
+print "Your Choice:";
+
+while (<STDIN>){
+	chomp;
+        if ( $_ eq "q" ){ exit;}
+        if ( $_ eq "Q" ){ exit;}
+	if ( ( $_ ne "") && (defined ($names[$_]))) {
+		if ($nsenter ne ""){
+			print "Calling nsenter\n";
+	        	$tmp=system "nsenter -m -u -n -i -p -t $names[$_] /bin/bash";
+		}
+		if ($lxcattach ne ""){
+			print "Calling lxc-attach\n";
+			$cmd="lxc-attach  -n $names[$_] ";
+			#$cmd="ssh urew\@localhost"; # This works ok
+			#$cmd="/bin/ls /etc"; # This works ok
+			#print "cmd is -->$cmd<--\n";
+			$tmp=system $cmd ;
+			print "tmp is -->$tmp<--\n";
+		}
+	        # For some reason this sends the script into a backgrounded state when it returns...
+	        # so I just exit.  I'll fix the problem later if I keep using this.
+		exit;
+	}
+	&print_menu;
+	print "Your Choice:";
+}
